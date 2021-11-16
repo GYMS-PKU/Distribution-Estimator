@@ -13,7 +13,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-import torch.optim as optim
 
 
 class Generator(nn.Module):  # 生成器
@@ -80,15 +79,17 @@ class Discriminator(nn.Module):  # 判别器
 
 
 class MyGAN:
-    def __init__(self, input_dim=5, output_dim=10):
+    def __init__(self, input_dim=5, output_dim=10, device='cpu'):
         """
         :param input_dim: 原始分布采样维度
         :param output_dim: 目标分布维度
+        :param device:
         """
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.generator = Generator(input_dim=self.input_dim, output_dim=self.output_dim)
-        self.discriminator = Discriminator(input_dim=self.output_dim)
+        self.device = device
+        self.generator = Generator(input_dim=self.input_dim, output_dim=self.output_dim).to(self.device)
+        self.discriminator = Discriminator(input_dim=self.output_dim).to(self.device)
 
         self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3, weight_decay=1e-3)
         self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=1e-3, weight_decay=1e-3)
@@ -100,4 +101,28 @@ class MyGAN:
         return self.discriminator(x)
 
     def fit(self, x_true, epochs=1000, batch_size=10000):
-        self.
+        lst = [i for i in range(len(x_true))]
+        for epoch in range(epochs):
+            batch = np.random.choice(lst, batch_size)
+            x_t = torch.Tensor(x_true[batch]).to(self.device)
+            y_t = torch.ones(batch_size).reshape(-1, 1).to(self.device)
+            x_f = torch.randn(batch_size, self.input_dim).to(self.device)  # 从标准正态采样
+            y_f = torch.zeros(batch_size).reshape(-1, 1).to(self.device)
+
+            # 训练生成器
+            self.g_optimizer.zero_grad()
+            z = self.generator(x_f)  # 假样本
+            g_loss = F.nll_loss(self.discriminator(z), y_t)
+            g_loss.backward()
+            self.g_optimizer.step()
+
+            # 训练分类器
+            self.d_optimizer.zero_grad()
+            g_loss = F.nll_loss(self.discriminator(x_t), y_t)
+            f_loss = F.nll_loss(self.discriminator(z), y_f)
+            d_loss = (g_loss + f_loss) / 2
+            d_loss.backward()
+            self.d_optimizer.step()
+
+            if (epoch+1) % (epochs//10) == 0:
+                print('epoch {} g_loss: {:.4f}, d_loss: {:.4f}'.format(epoch+1, g_loss, d_loss))
