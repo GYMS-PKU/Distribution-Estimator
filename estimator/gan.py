@@ -9,6 +9,7 @@
 """
 
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,7 +37,7 @@ class Generator(nn.Module):  # 生成器
             self.Dense3 = nn.Linear(input_dim // 2, output_dim)
         else:
             self.Dense2 = nn.Linear(input_dim * 2, input_dim)
-        self.Dense3 = nn.Linear(input_dim, output_dim)
+            self.Dense3 = nn.Linear(input_dim, output_dim)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
     def forward(self, x):
@@ -47,7 +48,7 @@ class Generator(nn.Module):  # 生成器
 
 
 class Discriminator(nn.Module):  # 判别器
-    def __init__(self, input_dim=10, output_dim=1, dropout=0.2, alpha=0.2):
+    def __init__(self, input_dim=10, output_dim=2, dropout=0.2, alpha=0.2):
         """
         :param input_dim: 目标分布维度
         :param output_dim: 二分类
@@ -67,7 +68,7 @@ class Discriminator(nn.Module):  # 判别器
             self.Dense3 = nn.Linear(input_dim // 2, output_dim)
         else:
             self.Dense2 = nn.Linear(input_dim * 2, input_dim)
-        self.Dense3 = nn.Linear(input_dim, output_dim)
+            self.Dense3 = nn.Linear(input_dim, output_dim)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.sigmoid = nn.LogSoftmax()
 
@@ -94,35 +95,35 @@ class MyGAN:
         self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3, weight_decay=1e-3)
         self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=1e-3, weight_decay=1e-3)
 
-    def generate(self, x):
-        return self.generator(x)
-
-    def discriminate(self, x):
-        return self.discriminator(x)
+    def generate(self, n=1):
+        with torch.no_grad():
+            return self.generator(torch.randn(n, self.input_dim).to(self.device)).cpu().numpy()
 
     def fit(self, x_true, epochs=1000, batch_size=10000):
         lst = [i for i in range(len(x_true))]
+        x_fate = np.random.randn(len(x_true), self.input_dim)
         for epoch in range(epochs):
             batch = np.random.choice(lst, batch_size)
             x_t = torch.Tensor(x_true[batch]).to(self.device)
-            y_t = torch.ones(batch_size).reshape(-1, 1).to(self.device)
-            x_f = torch.randn(batch_size, self.input_dim).to(self.device)  # 从标准正态采样
-            y_f = torch.zeros(batch_size).reshape(-1, 1).to(self.device)
+            y_t = torch.ones(batch_size).long().to(self.device)
+            x_f = torch.Tensor(x_fate[batch]).to(self.device)  # 从标准正态采样
+            y_f = torch.zeros(batch_size).long().to(self.device)
 
             # 训练生成器
-            self.g_optimizer.zero_grad()
-            z = self.generator(x_f)  # 假样本
-            g_loss = F.nll_loss(self.discriminator(z), y_t)
-            g_loss.backward()
-            self.g_optimizer.step()
+            for i in range(10):
+                self.g_optimizer.zero_grad()
+                z = self.generator(x_f)  # 假样本
+                g_loss = F.nll_loss(self.discriminator(z.detach()), y_t.long())
+                g_loss.backward()
+                self.g_optimizer.step()
 
             # 训练分类器
             self.d_optimizer.zero_grad()
-            g_loss = F.nll_loss(self.discriminator(x_t), y_t)
-            f_loss = F.nll_loss(self.discriminator(z), y_f)
-            d_loss = (g_loss + f_loss) / 2
-            d_loss.backward()
+            r_loss = F.nll_loss(self.discriminator(x_t), y_t.long())
+            r_loss.backward()
+            f_loss = F.nll_loss(self.discriminator(z.detach()), y_f.long())
+            f_loss.backward()
             self.d_optimizer.step()
 
             if (epoch+1) % (epochs//10) == 0:
-                print('epoch {} g_loss: {:.4f}, d_loss: {:.4f}'.format(epoch+1, g_loss, d_loss))
+                print('epoch {} g_loss: {:.4f}, d_loss: {:.4f}'.format(epoch+1, g_loss, (r_loss+f_loss)/2))

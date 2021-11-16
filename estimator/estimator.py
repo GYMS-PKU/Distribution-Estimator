@@ -9,29 +9,28 @@
 """
 
 
-import gan
+from .gan import *
+import numpy as np
+
 
 class Estimator:
-    def __init__(self, input_dim=5, output_dim=10, estimator='GAN', params=None, device='cpu'):
+    def __init__(self, input_dim=5, output_dim=10, estimator='GAN', device='cpu'):
         """
         :param input_dim: 原始分布采样维度
         :param output_dim: 目标分布维度
         :param estimator: 估计器
-        :param params: 估计器参数，以dict形式传入
         :param device:
         """
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.estimator_name = estimator
-        if estimator == 'GAN':
-            if params is None:
-                params = {'input_dim': self.input_dim, 'output_dim': self.output_dim}
-            self.estimator = MyGAN(input_dim=params['input_dim'], output_dim=params['output_dim'])
-
         self.device = device
+        if estimator == 'GAN':
+            self.estimator = MyGAN(input_dim=self.input_dim, output_dim=self.output_dim, device=self.device)
 
     def fit(self, x_true, epochs=1000, batch_size=10000):  # 拟合估计器
-        self.estimator.fit(x_true, epochs=1000, batch_size=10000)
+        self.estimator.fit(x_true, epochs=epochs, batch_size=batch_size)
 
-    def genera
+    def generate(self, n=1):
+        return self.estimator.generate(n=n)
 
