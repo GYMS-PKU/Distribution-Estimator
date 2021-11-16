@@ -31,6 +31,7 @@ class Estimator:
         self.device = device
 
     def fit(self, x_true, epochs=1000, batch_size=10000):  # 拟合估计器
-        if self.estimator_name == 'GAN':
-            for epoch in range(epochs):
+        self.estimator.fit(x_true, epochs=1000, batch_size=10000)
+
+    def genera
 

@@ -79,20 +79,25 @@ class Discriminator(nn.Module):  # 判别器
         return F.log_softmax(x, dim=1)
 
 
-class GAN(nn.Module):
+class MyGAN:
     def __init__(self, input_dim=5, output_dim=10):
         """
         :param input_dim: 原始分布采样维度
         :param output_dim: 目标分布维度
         """
-        super(GAN, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.generator = Generator(input_dim=self.input_dim, output_dim=self.output_dim)
         self.discriminator = Discriminator(input_dim=self.output_dim)
+
+        self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=1e-3, weight_decay=1e-3)
+        self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=1e-3, weight_decay=1e-3)
 
     def generate(self, x):
         return self.generator(x)
 
     def discriminate(self, x):
         return self.discriminator(x)
+
+    def fit(self, x_true, epochs=1000, batch_size=10000):
+        self.
