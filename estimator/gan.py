@@ -70,16 +70,29 @@ class Discriminator(nn.Module):  # 判别器
             self.Dense2 = nn.Linear(input_dim * 2, input_dim)
         self.Dense3 = nn.Linear(input_dim, output_dim)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.sigmoid = nn.LogSoftmax()
 
     def forward(self, x):
         x = self.leakyrelu(self.Dense1(x))
         x = self.leakyrelu(self.Dense2(x))
         x = self.leakyrelu(self.Dense3(x))
-        return x
+        return F.log_softmax(x, dim=1)
 
 
 class GAN(nn.Module):
-    def __init__(self, input_dim, output_dim=1):
+    def __init__(self, input_dim=5, output_dim=10):
+        """
+        :param input_dim: 原始分布采样维度
+        :param output_dim: 目标分布维度
+        """
         super(GAN, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.generator = Generator(input_dim=self.input_dim, output_dim=self.output_dim)
+        self.discriminator = Discriminator(input_dim=self.output_dim)
+
+    def generate(self, x):
+        return self.generator(x)
+
+    def discriminate(self, x):
+        return self.discriminator(x)
